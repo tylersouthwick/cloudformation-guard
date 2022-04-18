@@ -8,6 +8,8 @@ use serde_json;
 #[derive(Debug)]
 pub struct Error(pub ErrorKind);
 
+impl std::error::Error for Error {}
+
 impl Error {
     pub fn new(kind: ErrorKind) -> Error {
         Error(kind)
