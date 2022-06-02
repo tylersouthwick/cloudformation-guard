@@ -34,22 +34,22 @@ impl Command for Test {
     }
 
 
-    fn command(&self) -> App<'static, 'static> {
+    fn command(&self) -> App<'static> {
         App::new("test")
             .about(r#"Built in unit testing capability to validate a Guard rules file against
 unit tests specified in YAML format to determine each individual rule's success
 or failure testing.
 "#)
-            .arg(Arg::with_name("rules-file").long("rules-file").short("r").takes_value(true).help("Provide a rules file").required(true))
-            .arg(Arg::with_name("test-data").long("test-data").short("t").takes_value(true).help("Provide a file or dir for data files in JSON or YAML").required(true))
+            .arg(Arg::with_name("rules-file").long("rules-file").short('r').takes_value(true).help("Provide a rules file").required(true))
+            .arg(Arg::with_name("test-data").long("test-data").short('t').takes_value(true).help("Provide a file or dir for data files in JSON or YAML").required(true))
             .arg(Arg::with_name("alphabetical").alias("-a").help("Sort alphabetically inside a directory").required(false))
-            .arg(Arg::with_name("last-modified").long("last-modified").short("m").required(false).conflicts_with("alphabetical")
+            .arg(Arg::with_name("last-modified").long("last-modified").short('m').required(false).conflicts_with("alphabetical")
                 .help("Sort by last modified times within a directory"))
-            .arg(Arg::with_name("verbose").long("verbose").short("v").required(false)
+            .arg(Arg::with_name("verbose").long("verbose").short('v').required(false)
                 .help("Verbose logging"))
     }
 
-    fn execute(&self, app: &ArgMatches<'_>) -> Result<i32> {
+    fn execute(&self, app: &ArgMatches) -> Result<i32> {
         let mut exit_code = 0;
         let file = app.value_of("rules-file").unwrap();
         let data = app.value_of("test-data").unwrap();

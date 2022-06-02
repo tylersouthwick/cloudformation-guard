@@ -74,7 +74,7 @@ impl Command for Validate {
     }
 
 
-    fn command(&self) -> App<'static, 'static> {
+    fn command(&self) -> App<'static> {
         App::new("validate")
             .about(r#"Evaluates rules against the data files to determine success or failure. 
 You can point rules flag to a rules directory and point data flag to a data directory. 
@@ -85,36 +85,36 @@ Note - When pointing the command to a directory, the directory may not contain a
 rules and data files. The directory being pointed to must contain only data files,
 or rules files.
 "#)
-            .arg(Arg::with_name("rules").long("rules").short("r").takes_value(true).help("Provide a rules file or a directory of rules files"))
-            .arg(Arg::with_name("data").long("data").short("d").takes_value(true).help("Provide a data file or dir for data files in JSON or YAML").conflicts_with("payload"))
-            .arg(Arg::with_name("type").long("type").short("t").takes_value(true).possible_values(&["CFNTemplate"])
+            .arg(Arg::with_name("rules").long("rules").short('r').takes_value(true).help("Provide a rules file or a directory of rules files"))
+            .arg(Arg::with_name("data").long("data").short('d').takes_value(true).help("Provide a data file or dir for data files in JSON or YAML").conflicts_with("payload"))
+            .arg(Arg::with_name("type").long("type").short('t').takes_value(true).possible_values(&["CFNTemplate"])
                 .help("Specify the type of data file used for improved messaging"))
-            .arg(Arg::with_name("output-format").long("output-format").short("o").takes_value(true)
+            .arg(Arg::with_name("output-format").long("output-format").short('o').takes_value(true)
                 .possible_values(&["json","yaml","single-line-summary"])
                 .default_value("single-line-summary")
                 .help("Specify the format in which the output should be displayed"))
-            .arg(Arg::with_name("show-summary").long("show-summary").short("S").takes_value(true).use_delimiter(true).multiple(true)
+            .arg(Arg::with_name("show-summary").long("show-summary").short('S').takes_value(true).use_delimiter(true).multiple(true)
                 .possible_values(&["none", "all", "pass", "fail", "skip"])
                 .default_value("all")
                 .help("Controls if the summary table needs to be displayed. --show-summary all (default) or --show-summary pass,fail (only show rules that did pass/fail) or --show-summary none (to turn it off)"))
-            .arg(Arg::with_name("payload").long("payload").short("P")
+            .arg(Arg::with_name("payload").long("payload").short('P')
                 .help("Provide rules and data in the following JSON format via STDIN,\n{\"rules\":[\"<rules 1>\", \"<rules 2>\", ...], \"data\":[\"<data 1>\", \"<data 2>\", ...]}, where,\n- \"rules\" takes a list of string \
                 version of rules files as its value and\n- \"data\" takes a list of string version of data files as it value.\nWhen --payload is specified --rules and --data cannot be specified."))
             .group(ArgGroup::with_name("required_flags")
                 .args(&["rules", "payload"])
                 .required(true))
-            .arg(Arg::with_name("show-clause-failures").long("show-clause-failures").short("s").takes_value(false).required(false)
+            .arg(Arg::with_name("show-clause-failures").long("show-clause-failures").short('s').takes_value(false).required(false)
                 .help("Show clause failure along with summary"))
-            .arg(Arg::with_name("alphabetical").long("alphabetical").short("a").required(false).help("Validate files in a directory ordered alphabetically"))
-            .arg(Arg::with_name("last-modified").long("last-modified").short("m").required(false).conflicts_with("alphabetical")
+            .arg(Arg::with_name("alphabetical").long("alphabetical").short('a').required(false).help("Validate files in a directory ordered alphabetically"))
+            .arg(Arg::with_name("last-modified").long("last-modified").short('m').required(false).conflicts_with("alphabetical")
                 .help("Validate files in a directory ordered by last modified times"))
-            .arg(Arg::with_name("verbose").long("verbose").short("v").required(false)
+            .arg(Arg::with_name("verbose").long("verbose").short('v').required(false)
                 .help("Verbose logging"))
-            .arg(Arg::with_name("print-json").long("print-json").short("p").required(false)
+            .arg(Arg::with_name("print-json").long("print-json").short('p').required(false)
                 .help("Print output in json format"))
     }
 
-    fn execute(&self, app: &ArgMatches<'_>) -> Result<i32> {
+    fn execute(&self, app: &ArgMatches) -> Result<i32> {
         let verbose = if app.is_present("verbose") {
             true
         } else {

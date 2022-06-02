@@ -18,19 +18,19 @@ impl Command for ParseTree {
     }
 
 
-    fn command(&self) -> App<'static, 'static> {
+    fn command(&self) -> App<'static> {
         App::new("parse-tree")
             .about(r#"Prints out the parse tree for the rules defined in the file.
 "#)
-            .arg(Arg::with_name("rules").long("rules").short("r").takes_value(true).help("Provide a rules file").required(false))
-            .arg(Arg::with_name("output").long("output").short("o").takes_value(true).help("Write to output file").required(false))
-            .arg(Arg::with_name("print-json").long("print-json").short("j").required(false)
+            .arg(Arg::with_name("rules").long("rules").short('r').takes_value(true).help("Provide a rules file").required(false))
+            .arg(Arg::with_name("output").long("output").short('o').takes_value(true).help("Write to output file").required(false))
+            .arg(Arg::with_name("print-json").long("print-json").short('j').required(false)
                 .help("Print output in json format"))
-            .arg(Arg::with_name("print-yaml").long("print-yaml").short("y").required(false)
+            .arg(Arg::with_name("print-yaml").long("print-yaml").short('y').required(false)
                 .help("Print output in json format"))
     }
 
-    fn execute(&self, app: &ArgMatches<'_>) -> Result<i32> {
+    fn execute(&self, app: &ArgMatches) -> Result<i32> {
 
         let mut file: Box<dyn std::io::Read> = match app.value_of("rules") {
             Some(file) => Box::new(std::io::BufReader::new(File::open(file)?)),

@@ -45,9 +45,9 @@ fn main() -> Result<(), Error>{
         app = app.subcommand(each.command());
     }
 
-    let app = app.get_matches();
-    match app.subcommand() {
-        (name, Some(value)) => {
+    let matches = app.clone().get_matches();
+    match matches.subcommand() {
+        Some((name, value)) => {
             if let Some(command) = mappings.get(name) {
                 match (*command).execute(value) {
                     Err(e) => {
@@ -60,12 +60,11 @@ fn main() -> Result<(), Error>{
                 }
             }
             else {
-                println!("{}", app.usage());
+                app.write_help(&mut std::io::stdout());
             }
         },
-
-        (_, None) => {
-            println!("{}", app.usage());
+        None => {
+            app.write_long_help(&mut std::io::stdout());
         }
     }
     Ok(())
