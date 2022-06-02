@@ -5,6 +5,10 @@ mod rules;
 mod commands;
 mod command;
 mod migrate;
+mod cli;
+
+#[macro_use]
+extern crate lazy_static;
 
 pub extern "C" fn run_checks(
     data: &str,

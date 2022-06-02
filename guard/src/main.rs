@@ -1,49 +1,26 @@
-use clap::App;
 use std::collections::HashMap;
-
 
 mod rules;
 mod commands;
 mod command;
 mod migrate;
+mod cli;
 
-use crate::command::Command;
 use rules::errors::Error;
 use std::process::exit;
-
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+use cli::{build_app, COMMANDS};
 
 fn main() -> Result<(), Error>{
-    let mut app =
-        App::new("cfn-guard")
-            .version(VERSION)
-            .about(r#"
-  Guard is a general-purpose tool that provides a simple declarative syntax to define 
-  policy-as-code as rules to validate against any structured hierarchical data (like JSON/YAML).
-  Rules are composed of clauses expressed using Conjunctive Normal Form
-  (fancy way of saying it is a logical AND of OR clauses). Guard has deep
-  integration with CloudFormation templates for evaluation but is a general tool
-  that equally works for any JSON- and YAML- data."#);
+    let mut app = build_app();
 
-    let mut commands: Vec<Box<dyn Command>> = Vec::with_capacity(2);
-    commands.push(Box::new(crate::commands::parse_tree::ParseTree::new()));
-    commands.push(Box::new(crate::commands::test::Test::new()));
-    commands.push(Box::new(crate::commands::validate::Validate::new()));
-    commands.push(Box::new(crate::commands::rulegen::Rulegen::new()));
-    commands.push(Box::new(crate::commands::migrate::Migrate::new()));
-
-    let mappings = commands.iter()
+    let mappings = COMMANDS.iter()
         .map(|s| (s.name(), s)).fold(
-        HashMap::with_capacity(commands.len()),
+        HashMap::with_capacity(COMMANDS.len()),
         |mut map, entry| {
             map.insert(entry.0, entry.1.as_ref());
             map
         }
     );
-
-    for each in &commands {
-        app = app.subcommand(each.command());
-    }
 
     let matches = app.clone().get_matches();
     match matches.subcommand() {

@@ -5,6 +5,7 @@ pub(crate) mod test;
 pub(crate) mod helper;
 pub(crate) mod parse_tree;
 pub(crate) mod migrate;
+pub(crate) mod generate_completions;
 
 mod tracker;
 mod aws_meta_appender;
