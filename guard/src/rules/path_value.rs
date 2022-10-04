@@ -373,6 +373,14 @@ impl PartialEq for PathAwareValue {
 
 impl Eq for PathAwareValue {}
 
+impl TryFrom<i64> for PathAwareValue {
+    type Error = Error;
+
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
+        let value = Value::try_from(value)?;
+        PathAwareValue::try_from((&value, Path::try_from("")?))
+    }
+}
 impl TryFrom<&str> for PathAwareValue {
     type Error = Error;
 

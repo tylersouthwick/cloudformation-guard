@@ -1011,7 +1011,7 @@ pub(crate) fn block_clause(input: Span) -> IResult<Span, GuardClause> {
     })))
 }
 
-fn function_expr(input: Span) -> IResult<Span, FunctionExpr> {
+pub(crate) fn function_expr(input: Span) -> IResult<Span, FunctionExpr> {
     let location = FileLocation {
         file_name: input.extra,
         line: input.location_line(),
@@ -1027,8 +1027,8 @@ pub(crate) fn let_value(input: Span) -> IResult<Span, LetValue> {
     preceded(zero_or_more_ws_or_comment,
         alt((
             map(parse_value, |val| LetValue::Value(PathAwareValue::try_from(val).unwrap())),
-            map(access, |acc| LetValue::AccessClause(acc)),
             map(function_expr, |func| LetValue::FunctionCall(func)),
+            map(access, |acc| LetValue::AccessClause(acc)),
         ))
     )(input)
 }
@@ -1314,32 +1314,11 @@ fn let_assignment_expr(input: Span) -> IResult<Span, String> {
 fn assignment(input: Span) -> IResult<Span, LetExpr> {
     let (input, var_name) = let_assignment_expr(input)?;
 
-    match parse_value(input) {
-        Ok((input, value)) => Ok((input, LetExpr {
-            var: var_name,
-            value: LetValue::Value(PathAwareValue::try_from(value).unwrap())
-        })),
-
-        Err(nom::Err::Error(_)) => {
-            //
-            // if we did not succeed in parsing a value object, then
-            // if must be an access pattern, else it is a failure
-            //
-            let (input, access) = cut(
-                preceded(
-                    zero_or_more_ws_or_comment,
-                    access
-                )
-            )(input)?;
-
-            Ok((input, LetExpr {
-                var: var_name,
-                value: LetValue::AccessClause(access),
-            }))
-        },
-
-        Err(e) => Err(e)
-    }
+    let (input, value) = let_value(input)?;
+    Ok((input, LetExpr {
+        var: var_name,
+        value: value,
+    }))
 }
 
 //

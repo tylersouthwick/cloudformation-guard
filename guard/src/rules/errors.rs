@@ -146,6 +146,12 @@ impl From<regex::Error> for Error {
     }
 }
 
+impl From<std::num::ParseIntError> for Error {
+    fn from(err: std::num::ParseIntError) -> Self {
+        Error(ErrorKind::IncompatibleError(format!("{}", err)))
+    }
+}
+
 impl From<std::convert::Infallible> for Error {
     fn from(err: Infallible) -> Self {
         Error(ErrorKind::ConversionError(err))

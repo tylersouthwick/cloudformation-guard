@@ -2764,7 +2764,7 @@ fn test_clauses() {
                     QueryPart::Key(String::from("%engines"))], match_all: true })
             }
             )))]
-#[case("let x =", Err(nom::Err::Failure(ParserError {
+#[case("let x =", Err(nom::Err::Error(ParserError {
     span: unsafe {
         Span::new_from_raw_offset(
             "let x =".len(),
@@ -2846,6 +2846,30 @@ r##"let ENGINE_LOGS = {
                 "##).unwrap())
         }
         )))]
+#[case("let x = foo(bar)", Ok((
+            unsafe {
+                Span::new_from_raw_offset(
+                    "let x = foo(bar)".len(),
+                    1,
+                    "",
+                    ""
+                    )
+            },
+            LetExpr {
+                var: String::from("x"),
+                value: LetValue::FunctionCall(FunctionExpr {
+                    name: String::from("foo"),
+                    location: FileLocation {
+                        file_name: "",
+                        column: 9,
+                        line: 1,
+                    },
+                    parameters: vec![ LetValue::AccessClause(AccessQuery {
+                        query: vec![QueryPart::Key(String::from("bar"))],
+                        match_all: true
+                    })],
+            })}
+            )))]
 fn test_assignments(#[case] each : &str, #[case] expected : IResult<Span, LetExpr>) {
         let span = Span::new_extra(each, "");
         let result = assignment(span);

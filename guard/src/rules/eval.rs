@@ -1064,7 +1064,10 @@ pub(in crate::rules) fn eval_guard_access_clause<'value, 'loc: 'value>(
                                 return Err(e)
                             }
                         },
-                    LetValue::FunctionCall(_) => todo!()
+                    LetValue::FunctionCall(_) => {
+                        println!("function call!");
+                        todo!()
+                    }
                 }
             },
 

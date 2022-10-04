@@ -264,6 +264,12 @@ fn is_within<T: PartialOrd>(range: &RangeType<T>, other: &T) -> bool {
     lower && upper
 }
 
+impl TryFrom<i64> for Value {
+    type Error = Error;
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
+        Ok(Value::Int(value))
+    }
+}
 impl <'a> TryFrom<&'a serde_yaml::Value> for Value {
     type Error = Error;
 

@@ -1,4 +1,4 @@
-use crate::rules::exprs::{RulesFile, AccessQuery, Rule, LetExpr, LetValue, QueryPart, SliceDisplay, Block, GuardClause, Conjunctions, ParameterizedRule};
+use crate::rules::exprs::{RulesFile, AccessQuery, FunctionExpr, Rule, LetExpr, LetValue, QueryPart, SliceDisplay, Block, GuardClause, Conjunctions, ParameterizedRule};
 use crate::rules::path_value::{PathAwareValue, MapValue};
 use std::collections::{HashMap, HashSet};
 use crate::rules::{QueryResult, Status, EvalContext, UnResolved, RecordType, NamedStatus, TypeBlockCheck, BlockCheck, ClauseCheck, UnaryValueCheck, ValueCheck, ComparisonClauseCheck, RecordTracer, InComparisonCheck};
@@ -10,12 +10,18 @@ use serde::Serialize;
 use crate::rules::Status::SKIP;
 use crate::rules::values::CmpOperator;
 
+#[derive(Default)]
+pub(crate) struct ScopeVariables<'value, 'loc: 'value> {
+    literals : HashMap<&'value str, &'value PathAwareValue>,
+    queries : HashMap<&'value str, &'value AccessQuery<'loc>>,
+    functions : HashMap<&'value str, &'value FunctionExpr<'loc>>,
+}
+
 pub(crate) struct Scope<'value, 'loc: 'value> {
     root: &'value PathAwareValue,
     //resolved_variables: std::cell::RefCell<HashMap<&'value str, Vec<QueryResult<'value>>>>,
+    variables: ScopeVariables<'value, 'loc>,
     resolved_variables: HashMap<&'value str, Vec<QueryResult<'value>>>,
-    literals: HashMap<&'value str, &'value PathAwareValue>,
-    variable_queries: HashMap<&'value str, &'value AccessQuery<'loc>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Default)]
@@ -36,8 +42,7 @@ pub(crate) struct RootScope<'value, 'loc: 'value> {
 impl<'value, 'loc: 'value> RootScope<'value, 'loc> {
     pub fn reset_root(self, new_root: &'value PathAwareValue) -> Result<RootScope<'value, 'loc>> {
         root_scope_with(
-            self.scope.literals,
-            self.scope.variable_queries,
+            self.scope.variables,
             self.rules,
             self.parameterized_rules,
             new_root)
@@ -58,10 +63,7 @@ pub(crate) fn reset_with<'value, 'loc: 'value>(
     new_value: &'value PathAwareValue) -> RootScope<'value, 'loc>
 {
     let variables = std::mem::replace(
-        &mut root_scope.scope.variable_queries, HashMap::new());
-    let literals = std::mem::replace(
-        &mut root_scope.scope.literals, HashMap::new()
-    );
+        &mut root_scope.scope.variables, ScopeVariables::default());
     let rules = std::mem::replace(
         &mut root_scope.rules, HashMap::new()
     );
@@ -72,8 +74,7 @@ pub(crate) fn reset_with<'value, 'loc: 'value>(
         root: new_value,
         //resolved_variables: std::cell::RefCell::new(HashMap::new()),
         resolved_variables: HashMap::new(),
-        literals: literals,
-        variable_queries: variables
+        variables,
     };
     RootScope {
         scope, rules, parameterized_rules, rules_status: HashMap::new(),
@@ -94,13 +95,14 @@ pub(crate) struct ValueScope<'value, 'eval, 'loc: 'value> {
     pub(crate) parent: &'eval mut dyn EvalContext<'value, 'loc>,
 }
 
+
 fn extract_variables<'value, 'loc: 'value>(
     expressions: &'value Vec<LetExpr<'loc>>)
-    -> Result<(HashMap<&'value str, &'value PathAwareValue>,
-               HashMap<&'value str, &'value AccessQuery<'loc>>)> {
+    -> Result<ScopeVariables<'value, 'loc>> {
 
     let mut literals = HashMap::with_capacity(expressions.len());
     let mut queries = HashMap::with_capacity(expressions.len());
+    let mut functions = HashMap::with_capacity(expressions.len());
     for each in expressions {
         match &each.value {
             LetValue::Value(v) => {
@@ -111,10 +113,12 @@ fn extract_variables<'value, 'loc: 'value>(
                 queries.insert(each.var.as_str(), query);
             },
 
-            LetValue::FunctionCall(_) => todo!()
+            LetValue::FunctionCall(f) => {
+                functions.insert(each.var.as_str(), f);
+            }
         }
     }
-    Ok((literals, queries))
+    Ok(ScopeVariables {literals, queries, functions})
 }
 
 fn retrieve_index<'value>(parent: &'value PathAwareValue,
@@ -765,7 +769,7 @@ pub(crate) fn root_scope<'value, 'loc: 'value>(
     rules_file: &'value RulesFile<'loc>,
     root: &'value PathAwareValue) -> Result<RootScope<'value, 'loc>>
 {
-    let (literals, queries) =
+    let scope_variables =
         extract_variables(&rules_file.assignments)?;
     let mut lookup_cache = HashMap::with_capacity(rules_file.guard_rules.len());
     for rule in &rules_file.guard_rules {
@@ -777,12 +781,11 @@ pub(crate) fn root_scope<'value, 'loc: 'value>(
     for pr in rules_file.parameterized_rules.iter(){
         parameterized_rules.insert(pr.rule.rule_name.as_str(), pr);
     }
-    root_scope_with(literals, queries, lookup_cache,  parameterized_rules, root)
+    root_scope_with(scope_variables, lookup_cache,  parameterized_rules, root)
 }
 
 pub(crate) fn root_scope_with<'value, 'loc: 'value>(
-    literals: HashMap<&'value str, &'value PathAwareValue>,
-    queries: HashMap<&'value str, &'value AccessQuery<'loc>>,
+    scope_variables : ScopeVariables<'value, 'loc>,
     lookup_cache: HashMap<&'value str, Vec<&'value Rule<'loc>>>,
     parameterized_rules: HashMap<&'value str,&'value ParameterizedRule<'loc>>,
     root: &'value PathAwareValue)
@@ -791,8 +794,7 @@ pub(crate) fn root_scope_with<'value, 'loc: 'value>(
     Ok(RootScope {
         scope: Scope {
             root,
-            literals,
-            variable_queries: queries,
+            variables: scope_variables,
             //resolved_variables: std::cell::RefCell::new(HashMap::new()),
             resolved_variables: HashMap::new(),
         },
@@ -811,12 +813,11 @@ pub(crate) fn block_scope<'value, 'block, 'loc: 'value, 'eval, T>(
     root: &'value PathAwareValue,
     parent: &'eval mut dyn EvalContext<'value, 'loc>) -> Result<BlockScope<'value, 'loc, 'eval>> {
 
-    let (literals, variable_queries) =
+    let scope_variables =
         extract_variables(&block.assignments)?;
     Ok(BlockScope {
         scope: Scope {
-            literals,
-            variable_queries,
+            variables: scope_variables,
             root,
             //resolved_variables: std::cell::RefCell::new(HashMap::new()),
             resolved_variables: HashMap::new(),
@@ -942,15 +943,20 @@ impl<'value, 'loc: 'value> EvalContext<'value, 'loc> for RootScope<'value, 'loc>
     }
 
     fn resolve_variable(&mut self, variable_name: &'value str) -> Result<Vec<QueryResult<'value>>> {
-        if let Some(val) = self.scope.literals.get(variable_name) {
+        if let Some(val) = self.scope.variables.literals.get(variable_name) {
             return Ok(vec![QueryResult::Literal(*val)])
+        }
+
+        if let Some(val) = self.scope.variables.functions.get(variable_name) {
+            println!("got function: {:?}", val);
+            todo!()
         }
 
         if let Some(values) = self.scope.resolved_variables.get(variable_name) {
             return Ok(values.clone())
         }
 
-        let query = match self.scope.variable_queries.get(variable_name) {
+        let query = match self.scope.variables.queries.get(variable_name) {
             Some(val) => val,
             None => return Err(Error::new(ErrorKind::MissingValue(
                 format!("Could not resolve variable by name {} across scopes", variable_name)
@@ -1043,7 +1049,7 @@ impl<'value, 'loc: 'value, 'eval> EvalContext<'value, 'loc> for BlockScope<'valu
     }
 
     fn resolve_variable(&mut self, variable_name: &'value str) -> Result<Vec<QueryResult<'value>>> {
-        if let Some(val) = self.scope.literals.get(variable_name) {
+        if let Some(val) = self.scope.variables.literals.get(variable_name) {
             return Ok(vec![QueryResult::Literal(*val)])
         }
 
@@ -1051,7 +1057,48 @@ impl<'value, 'loc: 'value, 'eval> EvalContext<'value, 'loc> for BlockScope<'valu
             return Ok(values.clone())
         }
 
-        let query = match self.scope.variable_queries.get(variable_name) {
+        if let Some(val) = self.scope.variables.functions.get(variable_name) {
+            println!("got function: {:?}", val);
+            let mut resolved_parameters = vec![];
+            let function_name = val.name.clone();
+            for parameter in &val.parameters {
+                let resolved_parameter = match &parameter {
+                    LetValue::AccessClause(acc_query) => {
+                        let values = query_retrieval(0, &acc_query.query, self.root(), self)?;
+                        if values.len() != 1 {
+                            return Err(Error::new(ErrorKind::MissingValue(
+                                        format!("Expected only one query, not {}", values.len())
+                                        )));
+                        } else {
+                            values[0].clone()
+                        }
+                    },
+
+                    LetValue::Value(path_value) => {
+                        QueryResult::Literal(path_value)
+                    },
+
+                    LetValue::FunctionCall(_) => todo!(),
+                };
+                match resolved_parameter {
+                    QueryResult::Resolved(r) => {
+                        resolved_parameters.push(r)
+                    },
+                    QueryResult::Literal(l) => {
+                        resolved_parameters.push(l);
+                    },
+                    QueryResult::UnResolved(r) => {
+                        println!("not resolved: {:?}", r);
+                        todo!();
+                    },
+                };
+            };
+            let result = crate::rules::functions::resolve_function(function_name, &resolved_parameters)?;
+            self.scope.resolved_variables.insert(variable_name, vec![QueryResult::Resolved(&result.clone())]);
+            return Ok(self.scope.resolved_variables.get(variable_name).unwrap().clone())
+        }
+
+        let query = match self.scope.variables.queries.get(variable_name) {
             Some(val) => val,
             None => return self.parent.resolve_variable(variable_name)
         };
