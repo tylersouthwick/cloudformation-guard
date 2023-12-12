@@ -4,6 +4,7 @@ mod command;
 mod commands;
 mod rules;
 mod utils;
+mod lsp;
 
 use crate::commands::{OUTPUT, PARSE_TREE, RULEGEN};
 use crate::utils::reader::{ReadBuffer, Reader};

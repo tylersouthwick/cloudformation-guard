@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::{command::Command, commands};
+use crate::lsp::LspServer;
 
 pub mod reader;
 pub mod writer;
@@ -17,6 +18,7 @@ pub fn get_guard_commands() -> Vec<Box<dyn Command>> {
         Box::new(commands::test::Test::new()),
         Box::new(commands::validate::Validate::new()),
         Box::new(commands::rulegen::Rulegen::new()),
+        Box::new(LspServer::new()),
     ]
 }
 
